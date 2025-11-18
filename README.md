@@ -18,7 +18,7 @@ This is the official open source release of **STARFlow** and **STARFlow-V**, sta
 **STARFlow** introduces a novel transformer autoregressive flow architecture that combines the expressiveness of autoregressive models with the efficiency of normalizing flows. The model achieves state-of-the-art results in both text-to-image and text-to-video generation tasks.
 
 - **[STARFlow](https://arxiv.org/abs/2506.06276)**:  Scaling Latent Normalizing Flows for High-resolution Image Synthesis (NeurIPS 2024 Spotlight)
-- **STARFlow-V**: End-to-End Video Generative Modeling with Scalable Normalizing Flows (arXiv TBD)
+- **STARFlow-V**: End-to-End Video Generative Modeling with Autoregressive Normalizing Flows (arXiv TBD)
 
 🎬 **[View Video Results Gallery](https://apple.github.io/ml-starflow)** - See examples of generated videos and comparisons
 
@@ -45,7 +45,7 @@ pip install -r requirements.txt
 - `ckpts/starflow_3B_t2i_256x256.pth` - For text-to-image generation
 - `ckpts/starflow-v_7B_t2v_caus_480p_v3.pth` - For text-to-video generation
 
-📅 **Model Release Timeline**: Pretrained checkpoints will be released soon. Please check back or watch this repository for updates.
+📅 **Model Release Timeline**: Pretrained checkpoints will be released **soon**. Please check back or watch this repository for updates.
 
 The checkpoint files are not included in this repository due to size constraints.
 
@@ -226,7 +226,7 @@ python scripts/extract_images.py input_file.mp4
     └── wan_vae2.py       # Video VAE implementation
 ```
 
-## 💡 Tips for Best Results
+## 💡 Tips
 
 ### Image Generation
 1. Use guidance scales between 2.0-5.0 for balanced quality and diversity
