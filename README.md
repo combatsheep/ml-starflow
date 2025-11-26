@@ -7,7 +7,8 @@
 <div align="center">
 
 [![arXiv](https://img.shields.io/badge/arXiv-2506.06276-b31b1b.svg)](https://arxiv.org/abs/2506.06276)
-[![NeurIPS](https://img.shields.io/badge/NeurIPS-2025%20Spotlight-blue.svg)](https://neurips.cc/Conferences/2024)
+[![arXiv](https://img.shields.io/badge/arXiv-2511.20462-b31b1b.svg)](https://arxiv.org/abs/2511.20462)
+[![NeurIPS](https://img.shields.io/badge/NeurIPS-2025%20Spotlight-blue.svg)](https://neurips.cc/Conferences/2025)
 
 </div>
 
@@ -17,8 +18,8 @@ This is the official open source release of **STARFlow** and **STARFlow-V**, sta
 
 **STARFlow** introduces a novel transformer autoregressive flow architecture that combines the expressiveness of autoregressive models with the efficiency of normalizing flows. The model achieves state-of-the-art results in both text-to-image and text-to-video generation tasks.
 
-- **[STARFlow](https://arxiv.org/abs/2506.06276)**:  Scaling Latent Normalizing Flows for High-resolution Image Synthesis (NeurIPS 2024 Spotlight)
-- **STARFlow-V**: End-to-End Video Generative Modeling with Autoregressive Normalizing Flows (arXiv TBD)
+- **[STARFlow](https://arxiv.org/abs/2506.06276)**:  Scaling Latent Normalizing Flows for High-resolution Image Synthesis (NeurIPS 2025 Spotlight)
+- **[STARFlow-V](https://arxiv.org/abs/2511.20462)**: End-to-End Video Generative Modeling with Normalizing Flows (Arxiv)
 
 🎬 **[View Video Results Gallery](https://starflow-v.github.io)** - See examples of generated videos and comparisons
 
