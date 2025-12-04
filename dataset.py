@@ -24,15 +24,34 @@ import gc
 import threading
 import psutil
 import tempfile
-import decord
-from decord import VideoReader
+try:
+    import decord
+    from decord import VideoReader
+except Exception:
+    decord = None
+    VideoReader = None
 import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from misc import print, xprint
 from misc.condition_utils import get_camera_condition, get_point_condition, get_wind_condition
 
-# Initialize multiprocessing manager
-manager = torch.multiprocessing.Manager()
+# Lazily initialize multiprocessing manager to avoid spawn/bootstrapping issues
+manager = None
+
+def get_manager():
+    """Return a multiprocessing manager, creating it on first use.
+
+    Creating a manager at import time can cause spawn-related RuntimeError on
+    platforms where the 'spawn' start method is used (macOS). Delay creation
+    until runtime when needed.
+    """
+    global manager
+    if manager is None:
+        try:
+            manager = torch.multiprocessing.Manager()
+        except Exception:
+            manager = None
+    return manager
 
 # ==== helpers ==== #
 
@@ -353,7 +372,8 @@ class ImageTarDataset(Dataset):
 class OnlineImageTarDataset(ImageTarDataset):
     max_retry_n = 20
     max_read = 4096
-    tar_keys_lock = manager.Lock() if manager is not None else None
+    mg = get_manager()
+    tar_keys_lock = mg.Lock() if mg is not None else None
     
     def __init__(self, dataset_tsv, image_size, batch_size=None, **kwargs):
         super().__init__(dataset_tsv, image_size, **kwargs)
@@ -369,7 +389,8 @@ class OnlineImageTarDataset(ImageTarDataset):
         for key in self.tar_lists.keys():
             repeat = int(self.weights.get(key, 1))
             self.reset_tar_keys.extend([key] * repeat)
-        self.tar_keys = manager.list(self.reset_tar_keys) if manager is not None else list(self.reset_tar_keys)
+        mg = get_manager()
+        self.tar_keys = mg.list(self.reset_tar_keys) if mg is not None else list(self.reset_tar_keys)
         
         # Use more workers for better prefetching, but limit to reasonable number
         self.worker_executors = {}

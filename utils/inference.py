@@ -221,8 +221,31 @@ def process_denoising(samples: torch.Tensor, y: List[str], args,
         # Denoising not enabled or not applicable
         return samples
 
-    torch.cuda.empty_cache()
+    # Determine compute device for denoising: prefer model device, fall back to available backends
+    if hasattr(model, 'parameters'):
+        try:
+            model_dev = next(model.parameters()).device
+        except StopIteration:
+            model_dev = None
+    else:
+        model_dev = None
+
+    if model_dev is not None:
+        denoise_device = model_dev
+    elif torch.cuda.is_available():
+        denoise_device = torch.device('cuda')
+    elif getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
+        denoise_device = torch.device('mps')
+    else:
+        denoise_device = torch.device('cpu')
+
+    try:
+        torch.cuda.empty_cache()
+    except Exception:
+        pass
+
     assert isinstance(samples, torch.Tensor)
+    # Keep a CPU copy; we'll move chunks to denoise_device for processing
     samples = samples.cpu()
 
     # Use smaller batch size for training to avoid memory issues
@@ -232,7 +255,7 @@ def process_denoising(samples: torch.Tensor, y: List[str], args,
     is_video = samples.dim() == 5
 
     for j in range(b // db):
-        x_all = torch.clone(samples[j * db : (j + 1) * db]).detach().cuda()
+        x_all = torch.clone(samples[j * db : (j + 1) * db]).detach().to(denoise_device)
         y_batch = y[j * db : (j + 1) * db] if y is not None else None
 
         if is_video:
@@ -256,10 +279,15 @@ def process_denoising(samples: torch.Tensor, y: List[str], args,
                 args, text_encoder_kwargs, noise_std
             )
 
-        torch.cuda.empty_cache()
+        try:
+            if denoise_device.type == 'cuda':
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
         denoised_samples.append(x_all.detach().cpu())
 
-    return torch.cat(denoised_samples, dim=0).cuda()
+    # Return CPU tensor (saving utilities expect CPU tensors)
+    return torch.cat(denoised_samples, dim=0).cpu()
 
 
 def simple_denoising(model, samples: torch.Tensor, y_encoded,

@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+import contextlib
 import torch.nn.functional as F
 import torch.utils.data
 import torchvision as tv
@@ -54,7 +55,16 @@ DEFAULT_CAPTIONS = {
 def setup_model_and_components(args: argparse.Namespace) -> Tuple[torch.nn.Module, Optional[torch.nn.Module], tuple]:
     """Initialize and load the model, VAE, and text encoder."""
     dist = utils.Distributed()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Prefer CUDA, then MPS (on macOS), otherwise CPU
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    # Disable FSDP when not running distributed CUDA environment
+    if not dist.distributed or device.type != 'cuda':
+        args.fsdp = 0
 
     # Set random seed
     utils.set_random_seed(args.seed + dist.rank)
@@ -231,11 +241,13 @@ def main(args: argparse.Namespace) -> None:
 
     # Start sampling
     print(f'Starting sampling with global batch size {args.sample_batch_size}x{dist.world_size} GPUs')
-    torch.cuda.synchronize()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     start_time = time.time()
 
     with torch.no_grad():
-        with torch.autocast(device_type='cuda', dtype=torch.float32):
+        amp_ctx = torch.autocast(device_type='cuda', dtype=torch.float32) if device.type == 'cuda' else contextlib.nullcontext()
+        with amp_ctx:
             for i in tqdm.tqdm(range(int(np.ceil(num_samples / (args.sample_batch_size * dist.world_size))))):
                 # Determine aspect ratio and image shape
                 x_aspect = args.aspect_ratio if args.mix_aspect else None
@@ -298,15 +310,26 @@ def main(args: argparse.Namespace) -> None:
                     tokenizer, text_encoder_kwargs, noise_std
                 )
 
-                # Decode with VAE if available
+                # Decode with VAE if available. Ensure tensors are on the same device
+                # as the VAE weights to avoid device-mismatch errors (e.g., MPS conv requires
+                # input and weight on same device).
                 if args.vae is not None:
                     dec_fn = vae.decode
+                    try:
+                        vae_dev = next(vae.parameters()).device
+                    except Exception:
+                        vae_dev = device
                 else:
                     dec_fn = lambda x: x
+                    vae_dev = None
 
                 if isinstance(samples, list):
+                    if vae_dev is not None:
+                        samples = [s.to(vae_dev) for s in samples]
                     samples = torch.cat([dec_fn(s) for s in samples], dim=-1)
                 else:
+                    if vae_dev is not None:
+                        samples = samples.to(vae_dev)
                     samples = dec_fn(samples)
 
                 # Save samples using unified function
@@ -330,7 +353,8 @@ def main(args: argparse.Namespace) -> None:
                 )
 
     # Print timing statistics
-    torch.cuda.synchronize()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     elapsed_time = time.time() - start_time
     print(f'{model_name} cfg {args.cfg:.2f}, bsz={args.sample_batch_size}x{dist.world_size}, '
           f'time={elapsed_time:.2f}s, speed={num_samples / elapsed_time:.2f} images/s')

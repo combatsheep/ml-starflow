@@ -9,10 +9,11 @@ sentencepiece
 wandb[media]
 torchmetrics[image]
 simple_parsing
-decord
+# decord   # ← Python 3.14 + M5 だとビルド済みパッケージが無いので一旦オフ
 opencv-python
 psutil
 git+https://github.com/KeKsBoTer/torch-dwt
 git+https://github.com/huggingface/diffusers.git
 pyyaml
-av==12.3.0
+# av==12.3.0   # とりあえず動画用は後回し。画像だけなら不要
+

@@ -81,7 +81,12 @@ class Distributed:
         else:  # When running with python for debugging
             self.rank, self.local_rank, self.world_size = 0, 0, 1
             self.distributed = False
-        torch.cuda.set_device(self.local_rank)
+        # Only set CUDA device when CUDA is available
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.set_device(self.local_rank)
+        except Exception:
+            pass
         self.barrier()
 
     def barrier(self) -> None:
